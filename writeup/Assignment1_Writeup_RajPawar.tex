@@ -1,0 +1,191 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,urlcolor=blue!60!black,pdftitle={FRE-GT-9743 Assignment 1},pdfauthor={Raj Pawar}]{hyperref}
+\newcommand{\E}{\mathbb{E}}
+\emergencystretch=3em
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{FRE-GT-9743 Assignment 1}
+\author{Raj Pawar\\ NYU Tandon School of Engineering}
+\date{September 20, 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Part I: Bond Forward Business}
+
+\subsection*{Q1. Motivation, term sheet, and what happens on $T_s$}
+
+I read the trade as follows: the client wants to buy $\$1{,}000{,}000$ face of the current 10-year Treasury, but for settlement in one year instead of tomorrow. So the client is long the forward and Bank A is short. Notation used throughout: $P_0 = B(0;0,T_m)$ is today's dirty price per 100 face, $B(t;T_s,T_m)$ is the forward dirty price for delivery at $T_s$, $K$ is the strike, $R$ is the term repo rate to $T_s$ (simple interest, ACT/360), $\tau_{a,b}$ is the day count fraction from $a$ to $b$, and $c_j$ are the coupons paid at $t_j \in (0,T_s]$. The trade sits under a CSA, so it is collateralised and discounted at the collateral rate $r_C$ (SOFR), i.e. $df^{csa}(t,T_s) = P_c(t,T_s)$ in the notation of the lecture notes, and as in the notes $r_C \le r_R \le r_F$.
+
+Why would the client do this? The most common reason is that the client knows it will have cash in a year (an insurer or pension fund receiving premiums, a bond maturing, a scheduled inflow) and wants to fix today the yield at which that cash gets invested. Buying the bond forward removes the reinvestment risk of yields falling in the meantime, and it adds 10-year duration to the book now, which matters for asset-liability matching.
+
+A second reason is leverage and balance sheet. A long forward is economically a long bond financed at the implied repo rate, but the client pays nothing today except variation margin and needs no repo lines, no custody and no coupon operations. Many clients cannot run repo themselves, or prefer not to. Third, it can simply be a view: the client thinks the bond will be worth more at $T_s$ than the forward price, i.e. that yields fall by more than the carry that is already priced in. Since the coupon is usually above the repo rate the forward trades below spot, so the client is in a sense paid to wait. Finally the client may be hedging a short exposure somewhere else, or may want cash settlement to get the exposure without ever holding the security.
+
+The term sheet has to pin down the following.
+
+\begin{itemize}
+\item The parties and their roles (Bank A sells and delivers, the client buys and pays), the trade date, and the ISDA master agreement and CSA that govern it.
+\item The underlying: the exact issue (CUSIP), its coupon $c$ and maturity $T_m$. It has to be a specific bond, not ``the 10 year''; otherwise one needs a deliverable basket with conversion factors, like a futures contract.
+\item The face amount $N = \$1{,}000{,}000$.
+\item The forward settlement date $T_s$, with the calendar and business day convention.
+\item The forward price $K$: quoted per 100 face in 32nds, clean or dirty, with the accrued interest at $T_s$ spelled out. Sometimes a forward yield is quoted instead.
+\item The settlement type: physical delivery against payment, or cash settlement against a reference price, in which case the price source and the fixing time must be specified.
+\item Coupon entitlement: coupons paid on or before $T_s$ belong to the seller and the buyer receives the bond ex those coupons. This is exactly what makes $K$ differ from the spot price.
+\item The CSA details: collateral currency and eligible collateral, the collateral rate $r_C$, threshold, minimum transfer amount, margin frequency, valuation agent.
+\item What happens on a failure to deliver, on early termination, and similar events.
+\end{itemize}
+
+On $T_s$ itself: with physical settlement Bank A delivers $\$1{,}000{,}000$ face of the bond against payment (DVP) and the client pays $K \times N/100$, the agreed forward price, i.e. the clean strike plus the accrued interest at $T_s$. Bank A keeps the coupons paid up to $T_s$. With cash settlement there is one net payment of $N\,(B(T_s;T_s,T_m) - K)/100$: Bank A pays if the bond finished above the strike and the client pays otherwise. In both cases the collateral already posted under the CSA, which is roughly $V(T_s)$, is returned against the final payment, so most of the economic transfer has in fact already happened through the daily margin calls.
+
+\subsection*{Q2. Why the desk buys the bond at inception, and how it funds it}
+
+Bank A is short the forward, so at $T_s$ it receives $K - B(T_s;T_s,T_m)$. That is a linear exposure to the 10-year price, and not a small one: with a duration around 8, $\$1$mm face moves about $\$800$ per basis point. If the desk waited until $T_s$ to buy the bond it would be short a 10-year for a whole year. Buying the bond today removes that risk completely: whatever rates do, the desk already owns exactly the security it has to deliver. The only thing left to work out is the cost of carrying that bond for a year, and that is known today. This is a static replication, with no rebalancing, no volatility and no model, which is also why the forward price can be quoted from observable numbers rather than from a model of where the bond will trade in a year. In the language of the notes, the price is the cost of the replicating portfolio.
+
+The desk has no cash of its own, so the purchase is funded internally. The main leg is with the repo desk. The rates desk enters a term repo to $T_s$: it delivers the bond as collateral, receives cash of roughly $P_0 N$ (less a haircut, if any), and agrees to buy the bond back at $T_s$ for the cash plus interest at $R$. Legally the repo desk owns the bond for the year; economically the rates desk keeps the coupons, which are either passed back as manufactured payments or, as in Q3, netted against the loan. The repo desk in turn funds itself in the GC or tri-party market, or uses the bond to cover shorts if the issue is special. Whatever the repo does not cover is borrowed from the treasury desk at the bank's internal unsecured rate $r_F$: the haircut, any cash buffer, and the variation margin the desk has to post to the client when the forward moves in the client's favour (that collateral only earns $r_C$, so the desk pays the spread $r_F - r_C$ on it). Collateral received from the client is placed with treasury. Treasury also charges for the balance sheet, since the bond and the repo both gross up the leverage ratio. Because $r_R \le r_F$, funding through repo is the cheap way to do it, and the repo rate becomes the number that drives everything else in this trade.
+
+\subsection*{Q3. The forward price from the coupon schedule, the term repo rate and the spot price}
+
+Hint 1: if I borrow $\$1$ from the repo desk at the term rate $R$ I have to pay back $1 + R\,\tau_{0,T_s}$ at $T_s$ (simple interest, ACT/360). Hint 2: a coupon $c_j$ paid at $t_j$ while the bond sits with the repo desk goes to the repo desk and is netted against my loan, so my debt drops by $c_j$ at $t_j$, and that reduction then accrues at $R$ until $T_s$. So yes, the coupons do decrease the debt, by $c_j\,(1 + R\,\tau_{t_j,T_s})$ each.
+
+Putting the two together: at $t = 0$ I pay $P_0$ for the bond and borrow all of it in repo. At $T_s$ I owe
+
+\[D(T_s) = P_0\,(1 + R\,\tau_{0,T_s}) - \sum_{0<t_j\le T_s} c_j\,(1 + R\,\tau_{t_j,T_s}),\]
+
+I get the bond back and deliver it to the client against $K$. The package costs nothing today and carries no risk, so it must also pay nothing at $T_s$, i.e. $K = D(T_s)$. Since the forward is struck at par, $V(0) = df^{csa}(0,T_s)\,(B(0;T_s,T_m) - K) = 0$ gives
+
+\[B(0;T_s,T_m) = B(0;0,T_m)\,(1 + R\,\tau_{0,T_s}) - \sum_{0<t_j\le T_s} c_j\,(1 + R\,\tau_{t_j,T_s}).\]
+
+This is the forward dirty price; the clean forward price is this minus the accrued interest at $T_s$. For a 10-year Treasury there are two semi-annual coupons of $c/2$ inside the year. If a coupon date falls exactly on $T_s$ it belongs to the desk, which is the holder of record, and the bond is delivered with zero accrued.
+
+The same thing can be written with the repo discount factor $df_R(0,t) = 1/(1 + R\,\tau_{0,t})$:
+
+\[B(0;T_s,T_m) = \frac{B(0;0,T_m) - \sum_j c_j\,df_R(0,t_j)}{df_R(0,T_s)}.\]
+
+The two expressions agree exactly under continuous compounding; with simple interest they differ by a second order term $R^2\,\tau_{0,t_j}\,\tau_{t_j,T_s}\,c_j$, and the first one is the exact repo cash flow.
+
+The intuition is forward = spot + financing cost - coupon income, or spot minus carry. When the coupon yield is above the repo rate (positive carry) the forward is below spot: the buyer is compensated for giving up the coupons. Nothing here needs a model of the future bond price, only the spot price, the term repo rate and the coupon schedule. If somebody quoted a $K$ above this number the desk would lock in a riskless profit by doing exactly the cash-and-carry of Q2, and below it the reverse (short the bond and reverse repo it in). The rate that makes a given quote fair is the implied repo rate, which is how traders actually talk about these forwards.
+
+\subsection*{Q4. Mark-to-market at any $t \in (0, T_s]$}
+
+For any $t$ in $(0,T_s]$ I apply formula (2) of the assignment with the inputs observed at $t$:
+
+\[V(t) = df^{csa}(t,T_s)\,\bigl(B(t;T_s,T_m) - K\bigr)\]
+
+per unit face, times $N$. The forward price is recomputed with the Q3 recipe on today's market, i.e. the current dirty price $B(t;t,T_m)$ and the current term repo rate $R_t$ for the remaining period $[t,T_s]$:
+
+\[B(t;T_s,T_m) = B(t;t,T_m)\,(1 + R_t\,\tau_{t,T_s}) - \sum_{t<t_j\le T_s} c_j\,(1 + R_t\,\tau_{t_j,T_s}),\]
+
+where the coupons already paid have dropped out of the sum (they went to the repo desk). The discount factor $df^{csa}(t,T_s) = P_c(t,T_s)$ comes from the SOFR OIS curve, because under (near) perfect collateralisation the trade is discounted at the collateral rate, eq. (16) of the notes. $K$ is fixed at inception.
+
+The mark is model free: two observables plus OIS discounting. At $T_s$ the discount factor is 1 and the coupon sum is empty, so $V(T_s) = B(T_s;T_s,T_m) - K$, which is the payoff in formula (1). $V(t)$ is the client's value and the desk books $-V(t)$. It drives the daily variation margin $C(t) \approx V(t)$, the P\&L explain (spot price for the delta, repo rate for the carry, OIS for the discounting) and the risk numbers: the forward DV01 is roughly $df^{csa}(t,T_s)\,(1 + R_t\,\tau_{t,T_s})$ times the spot DV01, and $\partial V/\partial R_t = df^{csa}(t,T_s)\,[B(t;t,T_m)\,\tau_{t,T_s} - \sum_j c_j\,\tau_{t_j,T_s}]$. One subtlety: the hedged desk of Q2 sees the same $B(t;T_s,T_m) - K$, but its bond plus term repo package is worth that amount discounted at the repo rate, $(B(t;T_s,T_m) - K)/(1 + R_t\,\tau_{t,T_s})$, while the derivative itself is discounted at the collateral rate. The hedge is exact in cash flows at $T_s$ but carries a small $r_R - r_C$ discounting basis in the interim marks.
+
+\subsection*{Q5. Market risk, revenue, and how to convince the client}
+
+After Q2 and Q3 the book is: short the forward at $K$, long the bond bought at $P_0$, and a term repo at $R$ to $T_s$. At $T_s$ the desk repays $D(T_s) = K$, gets the bond back, delivers it and collects $K$. The cash flows are the same whatever the bond price turns out to be, so there is no first order market risk, no exposure to the level of yields, and no coupon uncertainty either since this is a fixed coupon Treasury. What remains is second order:
+
+\begin{itemize}
+\item funding risk if the repo is not term matched (rolling overnight or GC repo leaves the desk exposed to the repo rate resetting); the one-year term repo removes that, at the cost of a term premium, and if the issue goes special afterwards it is the repo desk rather than the rates desk that gets the benefit;
+\item a discounting basis, since the forward is discounted at $r_C$ while the hedge is financed at $r_R$, and the variation margin posted to the client earns $r_C$ but is funded at $r_F$ (an FVA type cost, larger if the CSA has thresholds or is one way); repo margin calls and CSA margin calls do not net either, which is a liquidity risk;
+\item counterparty risk on the client, mitigated by the CSA but with some gap risk at close-out, and settlement risk on the delivery;
+\item balance sheet and capital, because the bond and the repo gross up the leverage ratio and the forward consumes capital;
+\item if the contract is cash settled, the desk has to sell the bond in the market at $T_s$, so there is bid/offer and fixing risk against the reference price.
+\end{itemize}
+
+So does no risk mean no money? At the fair forward, yes: the desk is just passing its own financing terms through to the client. The way to make money is the repo rate. Instead of quoting the forward off the desk's own repo rate $R$, quote it off $R + s$:
+
+\[K^{quote} = P_0\,(1 + (R+s)\,\tau_{0,T_s}) - \sum_j c_j\,(1 + (R+s)\,\tau_{t_j,T_s}) > K^{fair}.\]
+
+The client sees an implied repo rate of $R + s$, the desk actually funds at $R$, and since every other cash flow is unchanged the difference is locked in at $T_s$:
+
+\[K^{quote} - K^{fair} = s\Bigl[P_0\,\tau_{0,T_s} - \sum_j c_j\,\tau_{t_j,T_s}\Bigr] \approx s\,\tau_{0,T_s}\,P_0.\]
+
+For $s = 10$bp on $\$1$mm face at a dirty price near 99 that is about $\$1{,}000$ for the year ($\$990$ to the nearest dollar in the numerical example below; the coupon term takes a little off). On top of that the desk earns the bid/offer on the spot purchase and can add a charge for balance sheet, capital and the $r_R - r_C$ basis.
+
+To convince the client I would present the forward as a financing trade and compare it with what the client can do alone. The client's alternative is to buy the bond today and finance it in repo at its own rate $R^{client}$, or unsecured. A dealer has cheaper, deeper and longer term repo access (GC, tri-party, netting, and it can lend the bond out if it goes special), so normally $R < R + s < R^{client}$. The forward therefore gives the client the bond at a financing rate below what it could get on its own, while the desk keeps $s$. I would say it in exactly those terms: ``you are financing the 10 year for a year at SOFR plus $x$ basis points''. With positive carry the quoted forward is still below spot, so the client keeps most of the carry and gives up only a few basis points of it. Add the operational savings (no repo lines, no haircut to fund, no coupon handling or custody, one clean price, netting inside the existing CSA, cash settlement if wanted) and the certainty of a fixed purchase price for a known future cash flow, and the trade is not hard to sell.
+
+\subsection*{*Q5. Relation to risk-neutral pricing}
+
+In the notes, under perfect collateralisation the pricing measure $Q$ is attached to the collateral account $B_c(t) = e^{\int_0^t r_C}$, eq. (16). The forward is struck so that
+
+\[0 = V(0) = \mathbb{E}^{Q}\Bigl[e^{-\int_0^{T_s} r_C(u)\,du}\,\bigl(B(T_s;T_s,T_m) - K\bigr)\Bigr],\]
+
+and after changing numeraire to the collateral zero coupon bond $P_c(0,T_s)$, which is the $T_s$-forward measure of eqs. (19) to (20) and (26) to (27), this becomes $K = \mathbb{E}^{T_s}[B(T_s;T_s,T_m)]$. More generally $B(t;T_s,T_m) = \mathbb{E}^{T_s}_t[B(T_s;T_s,T_m)]$ is a $Q^{T_s}$ martingale.
+
+Now the drift. In the replication argument of section 2.2 the asset leg is funded at the secured rate (item (c)), so under $Q$ the bond, with its coupons reinvested, grows at the repo rate $r_R$: this is eq. (14), $dS/S = r_R\,dt + \sigma\,dW$, applied to the bond. Hence $e^{-\int_0^t r_R}\bigl(B(t;t,T_m) + \text{reinvested coupons}\bigr)$ is a $Q$ martingale and
+
+\[\mathbb{E}^{Q}\Bigl[e^{-\int_0^{T_s} r_R}\,B(T_s;T_s,T_m)\Bigr] = B(0;0,T_m) - \sum_j \mathbb{E}^{Q}\Bigl[e^{-\int_0^{t_j} r_R}\Bigr]\,c_j .\]
+
+To get from here to the Q3 formula I need a few assumptions. (i) The repo rate over $[0,T_s]$ is deterministic, or in practice locked in by the term repo of Q2, so that $e^{-\int_0^t r_R} = df_R(0,t)$ is a constant and $\mathbb{E}^{Q}[B(T_s;T_s,T_m)] = \bigl[B(0;0,T_m) - \sum_j c_j\,df_R(0,t_j)\bigr]/df_R(0,T_s)$. (ii) The collateral rate is deterministic, or independent of the bond price, so that $\mathbb{E}^{T_s}$ and $\mathbb{E}^{Q}$ agree on the payoff and there is no convexity or correlation adjustment between discounting and payoff. (iii) Perfect collateralisation, $C \equiv V$, which is what makes $df^{csa}$ the right discount factor in formula (2) of the assignment and removes the FVA term of eq. (15). (iv) A frictionless repo: no haircut, no default, coupons credited at $R$, and the $T_s$ coupon convention of Q3. (v) One compounding convention, $1/df_R(0,T_s) = 1 + R\,\tau_{0,T_s}$. Under these,
+
+\[B(0;T_s,T_m) = \mathbb{E}^{T_s}[B(T_s;T_s,T_m)] = B(0;0,T_m)\,(1 + R\,\tau_{0,T_s}) - \sum_j c_j\,(1 + R\,\tau_{t_j,T_s}),\]
+
+which is the Q3 formula, exactly under continuous compounding and up to the second order term mentioned in Q3 under simple interest. If one insists on the literal formula of section 2.3, $F(0;T) = S(0)/P_c(0,T)$, one also needs $r_R = r_C$ (a zero asset lending fee in the language of section 2.1) and no coupons; otherwise $P_c$ has to be replaced by the repo discount factor and the coupons netted, which is what (i) does.
+
+So Q2 and Q3 are the replication side of the story: a static, self-financing portfolio of the bond and repo cash reproduces the payoff, and the price is the cost of that portfolio. The expectation above is the martingale side: the forward price is the $T_s$-forward expectation of the spot price. They agree by the fundamental theorem, as section 1.1 of the notes puts it, replication explains why the price must hold and the martingale gives a way to compute it. The drift of the underlying under $Q$ is the repo rate and not the collateral rate: using $r_C$ for the bond would misprice the forward by roughly $(r_R - r_C)\,\tau\,P_0$, the asset lending fee. And if repo rates are stochastic and correlated with the bond price there is a convexity adjustment hiding in $\mathbb{E}^{T_s}[B]$; the trader avoids it by locking the term repo, which makes assumption (i) true by construction. That is really why Q2 says to buy the bond and repo it out to $T_s$.
+
+\subsection*{Numerical example (hypothetical inputs)}
+
+To make the formulas concrete I take a 10-year with a 4.50\% semi-annual coupon, dirty spot 98.75 (a coupon has just been paid, so clean equals dirty), a one-year term repo of 4.00\% ACT/360, and coupons on day 181 and on day 365 $= T_s$. The repo interest is $98.75 \times 0.04 \times 365/360 = 4.0049$, the coupons with their accrual at $R$ are worth $2.25\,(1 + 0.04 \cdot 184/360) + 2.25 = 4.5460$, and the fair forward is $98.75 + 4.0049 - 4.5460 = 98.2089$, i.e. $0.5411$ below spot because the coupon is above the repo rate. Marking on day 182 with the bond at 100.20, the term repo at 3.90\% and OIS at 3.95\% (both simple interest, ACT/360 over the 183 remaining days): the forward is $99.9365$, $df^{csa} = 0.980316$, so $V(t) = +1.6936$ per 100, about $\$16{,}936$ to the client. Quoting the client at $R + 10$bp gives $K^{quote} = 98.3078$, so $0.0990$ per 100, or $\$990$ on $\$1$mm, is locked in. The notebook prints these numbers and also checks that the hedged book has zero P\&L for settlement prices from 90 to 110. In the notebook I also rebuild the forward from a three-bucket piecewise-constant repo curve stored in the Part II interpolator, using its integral for the discount factors and the gradient of the integral for the bucket sensitivities, checked against bump-and-reval; that is the fixed income use of the two functions the assignment asks for.
+
+\section*{Part II: Piecewise-Constant Left-Continuous Interpolator}
+
+The task was to implement the piecewise-constant, left-continuous interpolator with flat extrapolation inside the
+\code{FixedIncomeLib} skeleton, i.e. to fill in the four methods of \code{Interpolator1DPCP} (which derives from the abstract
+\code{Interpolator1D} and is created through \code{InterpolatorFactory} and the \code{qf*} functions), and to validate the two
+gradients by bump-and-reval. I left the abstract class, the factory and the API layer untouched.
+
+\paragraph{Convention.} With knots $x_0 \le \dots \le x_{N-1}$ and ordinates $y_i$, knot $i$ owns the half-open bucket
+$(x_{i-1}, x_i]$, the first bucket extends to $-\infty$ and the last ordinate is used for every $x > x_{N-1}$:
+\[
+f(x) = y_0 \ (x \le x_0), \qquad f(x) = y_i \ (x_{i-1} < x \le x_i), \qquad f(x) = y_{N-1} \ (x > x_{N-1}).
+\]
+So $f(x_i) = y_i = \lim_{x \uparrow x_i} f(x)$, which is the left continuity, and the function jumps just to the right of each knot.
+With $x = [1,3,5,7]$ and $y = [3,4,5,6]$ this gives $f(0.5) = 3$, $f(1) = 3$, $f(1.5) = 4$, $f(3) = 4$, $f(5.5) = 6$, $f(8) = 6$,
+as in the docstring.
+
+\paragraph{Implementation.} I fold the two wings into the first and last bucket, so the bucket bounds are
+$\ell = (-\infty, x_0, \dots, x_{N-2})$ and $u = (x_0, \dots, x_{N-2}, +\infty)$, and after that nothing needs a special case.
+\begin{itemize}
+\item \code{interpolate(x)} returns $y_k$ with $k = \min(\text{searchsorted}(x, \text{left}),\, N-1)$: the first knot with
+$x_k \ge x$ is exactly the left-continuous bucket, and the clamp is the flat right wing (the first bucket already covers the left wing).
+\item \code{gradient\_wrt\_ordinate(x)} is the one-hot vector $e_k$, since $f(x)$ is linear in the ordinates and only $y_k$ matters.
+\item \code{gradient\_of\_integrated\_value\_wrt\_ordinate(l,u)} returns how much of $[l,u]$ falls into each bucket,
+\[ w_i = \max\bigl(\min(u,u_i) - \max(l,\ell_i),\,0\bigr), \]
+with the sign flipped when $l > u$ so that $\int_l^u = -\int_u^l$.
+\item \code{integrate(l,u)} is $\sum_i w_i\,y_i$, i.e. the gradient contracted with the ordinates.
+\end{itemize}
+Inputs are checked at the boundary (finite scalars, non-decreasing knots, matching lengths, at least one knot), and the factory
+copies its inputs, so bumping a list in the notebook never leaks into an existing interpolator.
+
+\paragraph{Validation.} The notebook already contained \code{bump\_reval\_interpolator} for the value. For the integral I wrote
+\code{bump\_reval\_interpolator\_integrand} with the same structure, bumping a copy of the ordinates by $10^{-4}$ one knot at a time and re-integrating. Because $f$ and its
+integral are linear in $y$, the one-sided difference is exact up to round-off, so the comparison is a clean test of the code rather
+than of a discretisation. The results printed by the notebook are:
+
+\begin{table}[H]\centering\small
+\begin{tabular}{@{}lrr@{}}\toprule
+Check & Cases & Largest difference \\ \midrule
+Interpolated values against the expected values & 7 points & $0$ \\
+Integrals against the hand computed values & 8 ranges & $3.6\times10^{-15}$ \\
+$\nabla_y f(x)$ against bump-and-reval & 7 points & $2.3\times10^{-12}$ \\
+$\nabla_y I[f;l,u]$ against bump-and-reval & 8 ranges & $7.6\times10^{-11}$ \\ \bottomrule
+\end{tabular}
+\caption{Notebook checks; the gradient differences are floating point round-off and move around at the $10^{-10}$ level between machines.}
+\end{table}
+
+On top of the notebook I wrote \code{tests/test\_interpolator\_pcp.py} (20 tests, runnable with
+\code{python tests/test\_interpolator\_pcp.py} or \code{pytest}): the docstring convention, left continuity at every knot, far out
+flat extrapolation, a single knot, duplicate knots (zero width bucket), antisymmetry $\int_l^u = -\int_u^l$ and additivity over
+adjacent ranges, a Riemann sum cross-check, analytic against bump-and-reval gradients on the fixed knots and on 50 random knot sets,
+the identity $I = \nabla_y I \cdot y$, input validation and non-aliasing of the inputs.
+
+\vspace{1em}
+\noindent Code, notebook and this write-up: \href{https://github.com/pawarraj8888/FRE-GY-9743-Assignments-1/tree/Raj_Pawar_Branch}{github.com/pawarraj8888/FRE-GY-9743-Assignments-1}, branch \code{Raj\_Pawar\_Branch}.\\
+Project page: \href{https://pawarraj8888.github.io/FRE-GY-9743-Assignments-1/}{pawarraj8888.github.io/FRE-GY-9743-Assignments-1}.
+\end{document}
